@@ -1,85 +1,136 @@
-use std::{f32::consts::PI, ops::Range};
-use bevy::{input::mouse::{AccumulatedMouseScroll, MouseWheel}, prelude::{OrthographicProjection, *}};
+use bevy::{
+    diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, window::WindowResolution
+};
 
-mod map;
+mod app;
+mod menu;
+mod time;
+mod camera;
+mod fps;
+
+use camera::{CameraControl, ZoomSettings, CameraState, camera_input, smooth_camera};
+use time::{GameTime, DateText, game_time_system, update_date_ui, time_controls};
+use fps::{FpsText, fps_counter_system};
+use app::{AppState};
+use menu::{spawn_main_menu, menu_buttons, spawn_pause_menu, pause_input, BackToMenuButton, QuitButton, Menu, ResumeButton, StartButton, despawn_menu};
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        // =========================
+        // PLUGINS
+        // =========================
+        .add_plugins(
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    mode: bevy::window::WindowMode::Fullscreen(
+                        MonitorSelection::Primary,
+                        VideoModeSelection::Current,
+                    ),
+                    resolution: WindowResolution::new(1280, 720),
+                    title: "My Game".into(),
+                    ..default()
+                }),
+                ..default()
+            }),
+        )
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+
+        // =========================
+        // STATE
+        // =========================
+        .init_state::<AppState>()
+
+        // =========================
+        // RESOURCES
+        // =========================
         .init_resource::<ZoomSettings>()
+        .init_resource::<CameraState>()
+        .init_resource::<GameTime>()
+
+        // =========================
+        // STARTUP
+        // =========================
         .add_systems(Startup, setup)
-        .add_systems(Update, zoom)
+
+        // =========================
+        // IN-GAME SYSTEMS
+        // =========================
+        .add_systems(
+            Update,
+            (
+                camera_input,
+                smooth_camera,
+                fps_counter_system,
+                game_time_system,
+                time_controls,
+                update_date_ui,
+            )
+                .run_if(in_state(AppState::InGame)),
+        )
+
+        // =========================
+        // MENU SYSTEMS
+        // =========================
+        .add_systems(OnEnter(AppState::MainMenu), spawn_main_menu)
+        .add_systems(OnExit(AppState::MainMenu), despawn_menu)
+
+        .add_systems(OnEnter(AppState::Paused), spawn_pause_menu)
+        .add_systems(OnExit(AppState::Paused), despawn_menu)
+
+        .add_systems(Update, menu_buttons.run_if(
+            in_state(AppState::MainMenu) 
+        ))
+        .add_systems(Update, pause_input)
+
+        // =========================
+        // RUN
+        // =========================
         .run();
 }
 
-#[derive(Resource)]
-struct ZoomSettings {
-    pub min_scale: f32,
-    pub max_scale: f32,
-    pub speed: f32,
-}
-
-impl Default for ZoomSettings {
-    fn default() -> Self {
-        Self {
-            min_scale: 0.1, // Maksymalne przybliżenie
-            max_scale: 3.0, // Maksymalne oddalenie
-            speed: 0.5,     // Czułość scrolla
-        }
-    }
-}
-
-fn setup(
-    mut commands: Commands,
-    mut _meshes: ResMut<Assets<Mesh>>,
-    mut _material: ResMut<Assets<StandardMaterial>>,
-) {
+fn setup(mut commands: Commands) {
+    // Testowy obiekt
     commands.spawn((
-        Sprite::from_color(Color::WHITE, Vec2::new(200., 200.)),
-        Transform {
-            translation: Vec3::new(0., 0., 0.),
-            scale: Vec3::ONE,
-            ..Default::default()
-        },
+        Sprite::from_color(Color::WHITE, Vec2::new(400.0, 400.0)),
+        Transform::default(),
     ));
 
+    // Kamera 2D
+    commands.spawn((Camera2d::default(), CameraControl));
+
     commands.spawn((
-        Camera2d::default(),
-    ));
-    
-    commands.spawn((
-        Text::new("Uzyj kolka myszy, aby przyblizac/oddalac"),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(12.0),
+        Text::new("FPS: "),
+        TextFont {
+            font_size: 20.0,
             ..default()
         },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(5.0),
+            left: Val::Px(5.0),
+            ..default()
+        },
+        FpsText,
+    ));
+
+    commands.spawn((
+        Text::new(""),
+        TextFont {
+            font_size: 22.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(30.0),
+            left: Val::Px(5.0),
+            ..default()
+        },
+        DateText,
     ));
 }
 
-fn zoom(
-    camera: Single<&mut Projection, With<Camera>>,
-    camera_settings: Res<ZoomSettings>,
-    mouse_wheel_input: Res<AccumulatedMouseScroll>,
-) {
-    // Usually, you won't need to handle both types of projection,
-    // but doing so makes for a more complete example.
-    match *camera.into_inner() {
-        Projection::Orthographic(ref mut orthographic) => {
-            // We want scrolling up to zoom in, decreasing the scale, so we negate the delta.
-            let delta_zoom = -mouse_wheel_input.delta.y * camera_settings.speed;
-            // When changing scales, logarithmic changes are more intuitive.
-            // To get this effect, we add 1 to the delta, so that a delta of 0
-            // results in no multiplicative effect, positive values result in a multiplicative increase,
-            // and negative values result in multiplicative decreases.
-            let multiplicative_zoom = 1. + delta_zoom;
 
-            orthographic.scale = (orthographic.scale * multiplicative_zoom).clamp(
-                camera_settings.min_scale,
-                camera_settings.max_scale,
-            );
-        }
-        _ => (),
-    }
-}
+
+
