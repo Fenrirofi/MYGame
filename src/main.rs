@@ -1,7 +1,8 @@
 use bevy::{
-    diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, window::WindowResolution
+    diagnostic::FrameTimeDiagnosticsPlugin, input_focus::InputFocus, prelude::*, window::WindowResolution
 };
 
+mod nation;
 mod app;
 mod menu;
 mod time;
@@ -12,7 +13,9 @@ use camera::{CameraControl, ZoomSettings, CameraState, camera_input, smooth_came
 use time::{GameTime, DateText, game_time_system, update_date_ui, time_controls};
 use fps::{FpsText, fps_counter_system};
 use app::{AppState};
-use menu::{spawn_main_menu, menu_buttons, spawn_pause_menu, pause_input, BackToMenuButton, QuitButton, Menu, ResumeButton, StartButton, despawn_menu};
+use menu::{spawn_main_menu, menu_buttons, spawn_pause_menu, pause_input, despawn_menu};
+
+use crate::menu::menu_button_system;
 
 fn main() {
     App::new()
@@ -22,10 +25,7 @@ fn main() {
         .add_plugins(
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
-                    mode: bevy::window::WindowMode::Fullscreen(
-                        MonitorSelection::Primary,
-                        VideoModeSelection::Current,
-                    ),
+                    mode: bevy::window::WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
                     resolution: WindowResolution::new(1280, 720),
                     title: "My Game".into(),
                     ..default()
@@ -46,6 +46,7 @@ fn main() {
         .init_resource::<ZoomSettings>()
         .init_resource::<CameraState>()
         .init_resource::<GameTime>()
+        .init_resource::<InputFocus>()
 
         // =========================
         // STARTUP
@@ -77,15 +78,25 @@ fn main() {
         .add_systems(OnEnter(AppState::Paused), spawn_pause_menu)
         .add_systems(OnExit(AppState::Paused), despawn_menu)
 
-        .add_systems(Update, menu_buttons.run_if(
-            in_state(AppState::MainMenu) 
-        ))
+        .add_systems(
+            Update,
+            (
+                menu_button_system,
+                menu_buttons,
+            )
+                .run_if(in_menu_states),
+        )
+        .add_systems(Update, menu_button_system)
         .add_systems(Update, pause_input)
 
         // =========================
         // RUN
         // =========================
         .run();
+}
+
+fn in_menu_states(state: Res<State<AppState>>) -> bool {
+    matches!(state.get(), AppState::MainMenu | AppState::Paused)
 }
 
 fn setup(mut commands: Commands) {

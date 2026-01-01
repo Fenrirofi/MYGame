@@ -56,10 +56,10 @@ pub fn camera_input(
     let mut dir = Vec2::ZERO;
 
     if keys.pressed(KeyCode::ArrowUp) {
-        dir.y -= 1.0;
+        dir.y += 1.0;
     }
     if keys.pressed(KeyCode::ArrowDown) {
-        dir.y += 1.0;
+        dir.y -= 1.0;
     }
     if keys.pressed(KeyCode::ArrowLeft) {
         dir.x -= 1.0;
