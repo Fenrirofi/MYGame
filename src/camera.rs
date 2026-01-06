@@ -74,7 +74,7 @@ pub fn camera_input(
     let Ok(window) = windows.single() else {return };
     
     if let Some(cursor) = window.cursor_position() {
-        let w = window.height();
+        let w = window.width();
         let h = window.height();
         let m = settings.edge_scroll_margin;
         

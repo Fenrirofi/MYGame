@@ -9,13 +9,14 @@ mod time;
 mod camera;
 mod fps;
 mod map;
+mod player;
 
 use camera::{CameraControl, ZoomSettings, CameraState, camera_input, smooth_camera};
 use time::{GameTime, DateText, game_time_system, update_date_ui, time_controls};
 use fps::{FpsText, fps_counter_system};
 use app::{AppState};
 use menu::{spawn_main_menu, menu_buttons, spawn_pause_menu, pause_input, despawn_menu};
-
+use crate::player::Player;
 use crate::{map::{MapData, clamp_camera_system}, menu::menu_button_system};
 
 fn main() {
@@ -116,7 +117,7 @@ fn setup(mut commands: Commands) {
     ));
 
     // Kamera 2D
-    commands.spawn((Camera2d::default(), CameraControl));
+    commands.spawn((Camera2d::default(), Player, CameraControl));
 
     commands.spawn((
         Text::new("FPS: "),
