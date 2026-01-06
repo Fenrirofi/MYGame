@@ -8,6 +8,7 @@ mod menu;
 mod time;
 mod camera;
 mod fps;
+mod map;
 
 use camera::{CameraControl, ZoomSettings, CameraState, camera_input, smooth_camera};
 use time::{GameTime, DateText, game_time_system, update_date_ui, time_controls};
@@ -15,7 +16,7 @@ use fps::{FpsText, fps_counter_system};
 use app::{AppState};
 use menu::{spawn_main_menu, menu_buttons, spawn_pause_menu, pause_input, despawn_menu};
 
-use crate::menu::menu_button_system;
+use crate::{map::{MapData, clamp_camera_system}, menu::menu_button_system};
 
 fn main() {
     App::new()
@@ -47,6 +48,13 @@ fn main() {
         .init_resource::<CameraState>()
         .init_resource::<GameTime>()
         .init_resource::<InputFocus>()
+        
+        .insert_resource(MapData {
+            width: 4000.,
+            height: 4000.,
+            year: 1918,
+            camera_margin: 200.,
+        })
 
         // =========================
         // STARTUP
@@ -62,6 +70,7 @@ fn main() {
                 camera_input,
                 smooth_camera,
                 fps_counter_system,
+                clamp_camera_system,
                 game_time_system,
                 time_controls,
                 update_date_ui,

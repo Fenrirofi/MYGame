@@ -1,4 +1,4 @@
-use bevy::{prelude::*, input::mouse::AccumulatedMouseScroll};
+use bevy::{input::mouse::AccumulatedMouseScroll, prelude::*, window::PrimaryWindow};
 
 #[derive(Component)]
 pub struct CameraControl;
@@ -13,6 +13,7 @@ pub struct ZoomSettings {
     max_scale: f32,
     zoom_speed: f32,
     pan_speed: f32,
+    edge_scroll_margin: f32,
 }
 
 impl Default for ZoomSettings {
@@ -22,6 +23,7 @@ impl Default for ZoomSettings {
             max_scale: 3.0,
             zoom_speed: 0.15,
             pan_speed: 600.0,
+            edge_scroll_margin: 5.0,
         }
     }
 }
@@ -51,6 +53,7 @@ pub fn camera_input(
     keys: Res<ButtonInput<KeyCode>>,
     scroll: Res<AccumulatedMouseScroll>,
     time: Res<Time>,
+    windows: Query<&Window, With<PrimaryWindow>>
 ) {
     // ===== PAN =====
     let mut dir = Vec2::ZERO;
@@ -66,6 +69,27 @@ pub fn camera_input(
     }
     if keys.pressed(KeyCode::ArrowRight) {
         dir.x += 1.0;
+    }
+    
+    let Ok(window) = windows.single() else {return };
+    
+    if let Some(cursor) = window.cursor_position() {
+        let w = window.height();
+        let h = window.height();
+        let m = settings.edge_scroll_margin;
+        
+        if cursor.x <= m {
+            dir.x -= 1.0;
+        } else if cursor.x >= w - m {
+            dir.x += 1.0;
+        }
+
+        // Góra / dół
+        if cursor.y <= m {
+            dir.y += 1.0;
+        } else if cursor.y >= h - m {
+            dir.y -= 1.0;
+        }
     }
 
     if dir.length_squared() > 0.0 {
